@@ -1,16 +1,4 @@
 
-# Go build artifacts
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-xray
-xray.exe
-
-# Test binary
-*.test
-
 # Output of the go coverage tool
 *.out
 
