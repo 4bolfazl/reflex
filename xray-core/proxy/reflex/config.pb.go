@@ -121,6 +121,7 @@ type InboundConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Clients       []*User                `protobuf:"bytes,1,rep,name=clients,proto3" json:"clients,omitempty"`
 	Fallback      *Fallback              `protobuf:"bytes,2,opt,name=fallback,proto3" json:"fallback,omitempty"`
+	Ech           *ECHSettings           `protobuf:"bytes,3,opt,name=ech,proto3" json:"ech,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -165,6 +166,13 @@ func (x *InboundConfig) GetClients() []*User {
 func (x *InboundConfig) GetFallback() *Fallback {
 	if x != nil {
 		return x.Fallback
+	}
+	return nil
+}
+
+func (x *InboundConfig) GetEch() *ECHSettings {
+	if x != nil {
+		return x.Ech
 	}
 	return nil
 }
@@ -219,6 +227,7 @@ type OutboundConfig struct {
 	Port          uint32                 `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
 	Id            string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
 	Policy        string                 `protobuf:"bytes,4,opt,name=policy,proto3" json:"policy,omitempty"`
+	Ech           *ECHSettings           `protobuf:"bytes,5,opt,name=ech,proto3" json:"ech,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -281,6 +290,97 @@ func (x *OutboundConfig) GetPolicy() string {
 	return ""
 }
 
+func (x *OutboundConfig) GetEch() *ECHSettings {
+	if x != nil {
+		return x.Ech
+	}
+	return nil
+}
+
+type ECHSettings struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	PublicName    string                 `protobuf:"bytes,2,opt,name=public_name,json=publicName,proto3" json:"public_name,omitempty"`
+	CertFile      string                 `protobuf:"bytes,3,opt,name=cert_file,json=certFile,proto3" json:"cert_file,omitempty"`
+	KeyFile       string                 `protobuf:"bytes,4,opt,name=key_file,json=keyFile,proto3" json:"key_file,omitempty"`
+	ServerName    string                 `protobuf:"bytes,5,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	Insecure      bool                   `protobuf:"varint,6,opt,name=insecure,proto3" json:"insecure,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ECHSettings) Reset() {
+	*x = ECHSettings{}
+	mi := &file_proxy_reflex_config_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ECHSettings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ECHSettings) ProtoMessage() {}
+
+func (x *ECHSettings) ProtoReflect() protoreflect.Message {
+	mi := &file_proxy_reflex_config_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ECHSettings.ProtoReflect.Descriptor instead.
+func (*ECHSettings) Descriptor() ([]byte, []int) {
+	return file_proxy_reflex_config_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ECHSettings) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *ECHSettings) GetPublicName() string {
+	if x != nil {
+		return x.PublicName
+	}
+	return ""
+}
+
+func (x *ECHSettings) GetCertFile() string {
+	if x != nil {
+		return x.CertFile
+	}
+	return ""
+}
+
+func (x *ECHSettings) GetKeyFile() string {
+	if x != nil {
+		return x.KeyFile
+	}
+	return ""
+}
+
+func (x *ECHSettings) GetServerName() string {
+	if x != nil {
+		return x.ServerName
+	}
+	return ""
+}
+
+func (x *ECHSettings) GetInsecure() bool {
+	if x != nil {
+		return x.Insecure
+	}
+	return false
+}
+
 var File_proxy_reflex_config_proto protoreflect.FileDescriptor
 
 const file_proxy_reflex_config_proto_rawDesc = "" +
@@ -290,17 +390,28 @@ const file_proxy_reflex_config_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06policy\x18\x02 \x01(\tR\x06policy\"\x19\n" +
 	"\aAccount\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"q\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x9e\x01\n" +
 	"\rInboundConfig\x12,\n" +
 	"\aclients\x18\x01 \x03(\v2\x12.reflex.proxy.UserR\aclients\x122\n" +
-	"\bfallback\x18\x02 \x01(\v2\x16.reflex.proxy.FallbackR\bfallback\"\x1e\n" +
+	"\bfallback\x18\x02 \x01(\v2\x16.reflex.proxy.FallbackR\bfallback\x12+\n" +
+	"\x03ech\x18\x03 \x01(\v2\x19.reflex.proxy.ECHSettingsR\x03ech\"\x1e\n" +
 	"\bFallback\x12\x12\n" +
-	"\x04dest\x18\x01 \x01(\rR\x04dest\"f\n" +
+	"\x04dest\x18\x01 \x01(\rR\x04dest\"\x93\x01\n" +
 	"\x0eOutboundConfig\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x12\n" +
 	"\x04port\x18\x02 \x01(\rR\x04port\x12\x0e\n" +
 	"\x02id\x18\x03 \x01(\tR\x02id\x12\x16\n" +
-	"\x06policy\x18\x04 \x01(\tR\x06policyB(Z&github.com/xtls/xray-core/proxy/reflexb\x06proto3"
+	"\x06policy\x18\x04 \x01(\tR\x06policy\x12+\n" +
+	"\x03ech\x18\x05 \x01(\v2\x19.reflex.proxy.ECHSettingsR\x03ech\"\xbd\x01\n" +
+	"\vECHSettings\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1f\n" +
+	"\vpublic_name\x18\x02 \x01(\tR\n" +
+	"publicName\x12\x1b\n" +
+	"\tcert_file\x18\x03 \x01(\tR\bcertFile\x12\x19\n" +
+	"\bkey_file\x18\x04 \x01(\tR\akeyFile\x12\x1f\n" +
+	"\vserver_name\x18\x05 \x01(\tR\n" +
+	"serverName\x12\x1a\n" +
+	"\binsecure\x18\x06 \x01(\bR\binsecureB(Z&github.com/xtls/xray-core/proxy/reflexb\x06proto3"
 
 var (
 	file_proxy_reflex_config_proto_rawDescOnce sync.Once
@@ -314,22 +425,25 @@ func file_proxy_reflex_config_proto_rawDescGZIP() []byte {
 	return file_proxy_reflex_config_proto_rawDescData
 }
 
-var file_proxy_reflex_config_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_proxy_reflex_config_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_proxy_reflex_config_proto_goTypes = []any{
 	(*User)(nil),           // 0: reflex.proxy.User
 	(*Account)(nil),        // 1: reflex.proxy.Account
 	(*InboundConfig)(nil),  // 2: reflex.proxy.InboundConfig
 	(*Fallback)(nil),       // 3: reflex.proxy.Fallback
 	(*OutboundConfig)(nil), // 4: reflex.proxy.OutboundConfig
+	(*ECHSettings)(nil),    // 5: reflex.proxy.ECHSettings
 }
 var file_proxy_reflex_config_proto_depIdxs = []int32{
 	0, // 0: reflex.proxy.InboundConfig.clients:type_name -> reflex.proxy.User
 	3, // 1: reflex.proxy.InboundConfig.fallback:type_name -> reflex.proxy.Fallback
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	5, // 2: reflex.proxy.InboundConfig.ech:type_name -> reflex.proxy.ECHSettings
+	5, // 3: reflex.proxy.OutboundConfig.ech:type_name -> reflex.proxy.ECHSettings
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_proxy_reflex_config_proto_init() }
@@ -343,7 +457,7 @@ func file_proxy_reflex_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proxy_reflex_config_proto_rawDesc), len(file_proxy_reflex_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

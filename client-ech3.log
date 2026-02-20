@@ -1,0 +1,13 @@
+Xray 25.12.8 (Xray, Penetrates Everything.) Custom (go1.26.0 windows/amd64)
+A unified platform for anti-censorship.
+2026/02/20 17:12:54.335966 [Info] infra/conf/serial: Reading config: &{Name:config-client-ech.json Format:json}
+2026/02/20 17:12:54.336506 [Debug] app/log: Logger started
+2026/02/20 17:12:54.336506 [Debug] app/proxyman/inbound: creating stream worker on 0.0.0.0:1080
+2026/02/20 17:12:54.338680 [Info] transport/internet/tcp: listening TCP on 0.0.0.0:1080
+2026/02/20 17:12:54.338680 [Warning] core: Xray 25.12.8 started
+2026/02/20 17:12:56.335602 [Info] [3993643926] proxy/socks: TCP Connect request to tcp:44.195.71.76:80
+2026/02/20 17:12:56.335602 [Info] [3993643926] app/dispatcher: default route for tcp:44.195.71.76:80
+2026/02/20 17:12:56.335602 from tcp:127.0.0.1:61882 accepted tcp:44.195.71.76:80 [socks-in >> reflex-out]
+2026/02/20 17:12:56.337980 [Info] [3993643926] transport/internet/tcp: dialing TCP to tcp:127.0.0.1:10443
+2026/02/20 17:12:56.337980 [Debug] [3993643926] transport/internet: dialing to tcp:127.0.0.1:10443
+2026/02/20 17:12:56.337980 [Info] [3993643926] proxy/reflex/outbound: tunneling request to tcp:44.195.71.76:80 via 127.0.0.1:10443

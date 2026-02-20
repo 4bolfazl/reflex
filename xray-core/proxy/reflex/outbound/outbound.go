@@ -3,6 +3,7 @@ package outbound
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/binary"
 	"io"
 	"time"
@@ -37,6 +38,7 @@ type Handler struct {
 	clientID      string
 	policyName    string
 	policyManager policy.Manager
+	tlsConfig     *tls.Config
 }
 
 // New creates a new Reflex outbound handler.
@@ -49,6 +51,15 @@ func New(ctx context.Context, config *reflex.OutboundConfig) (*Handler, error) {
 		policyName:    config.GetPolicy(),
 		policyManager: v.GetFeature(policy.ManagerType()).(policy.Manager),
 	}
+
+	if ech := config.GetEch(); ech != nil && ech.GetEnabled() {
+		tlsCfg, err := reflex.BuildClientTLSConfig(ech)
+		if err != nil {
+			return nil, errors.New("failed to build client TLS+ECH config").Base(err).AtError()
+		}
+		handler.tlsConfig = tlsCfg
+	}
+
 	return handler, nil
 }
 
@@ -78,6 +89,23 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 		return errors.New("failed to connect to reflex server").Base(err).AtWarning()
 	}
 	defer func() { _ = conn.Close() }()
+
+	// If TLS+ECH is configured, wrap the outgoing TCP connection in a TLS client
+	// before proceeding with the Reflex handshake.
+	if h.tlsConfig != nil {
+		serverName := h.tlsConfig.ServerName
+		if serverName == "" {
+			serverName = h.serverAddress.String()
+		}
+		clientTLS := h.tlsConfig.Clone()
+		clientTLS.ServerName = serverName
+
+		tlsConn := tls.Client(conn, clientTLS)
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
+			return errors.New("TLS+ECH client handshake failed").Base(err).AtWarning()
+		}
+		conn = stat.Connection(tlsConn)
+	}
 
 	errors.LogInfo(ctx, "tunneling request to ", destination, " via ", serverDest.NetAddr())
 
@@ -155,10 +183,8 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 	postRequest := func() error {
 		defer timer.SetTimeout(sessionPolicy.Timeouts.DownlinkOnly)
 
-		// Send the target destination in the first DATA frame
 		destData := marshalDestination(destination)
 
-		// Try to read the first payload with a short timeout
 		var firstPayloadBytes []byte
 		if timeoutReader, ok := link.Reader.(buf.TimeoutReader); ok {
 			mb, err := timeoutReader.ReadMultiBufferTimeout(time.Millisecond * 500)
@@ -172,13 +198,11 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 			}
 		}
 
-		// First frame: destination + initial payload
 		firstFrame := append(destData, firstPayloadBytes...)
 		if err := sess.WriteFrame(conn, reflex.FrameTypeData, firstFrame); err != nil {
 			return errors.New("failed to write first data frame").Base(err).AtWarning()
 		}
 
-		// Continue forwarding from link.Reader as encrypted frames
 		for {
 			mb, err := link.Reader.ReadMultiBuffer()
 			if err != nil {
