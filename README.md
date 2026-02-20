@@ -123,10 +123,6 @@ CGO_ENABLED=1 go test -race ./proxy/reflex/... ./tests/...
 
 وقتی تست‌ها رو روی CI اجرا می‌کردیم، بعضی وقت‌ها handshake fail می‌شد چون ساعت سرور CI با ساعت تست sync نبود. `MaxTimestampDrift` رو ۱۲۰ ثانیه گذاشتیم که یه tolerance معقول باشه.
 
-### مشکل Registration پروتکل در Xray-Core
-
-اوایل وقتی پروتکل رو register می‌کردیم، error می‌خوردیم چون `config.pb.go` هنوز تولید نشده بود و `common.RegisterConfig` با nil type کار نمی‌کرد. ترتیب مراحل رو درست کردیم: اول proto compile، بعد build.
-
 ## ساختار فایل‌ها
 
 ```
