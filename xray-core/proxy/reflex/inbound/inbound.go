@@ -3,7 +3,6 @@ package inbound
 import (
 	"bufio"
 	"context"
-	"crypto/tls"
 	"encoding/binary"
 	"io"
 	"time"
@@ -38,7 +37,6 @@ type Handler struct {
 	clientEntries []*reflex.ClientEntry
 	fallback      *reflex.Fallback
 	nonceTracker  *reflex.NonceTracker
-	tlsConfig     *tls.Config
 }
 
 // New creates a new Reflex inbound handler.
@@ -71,14 +69,6 @@ func New(ctx context.Context, config *reflex.InboundConfig) (*Handler, error) {
 		handler.fallback = config.GetFallback()
 	}
 
-	if ech := config.GetEch(); ech != nil && ech.GetEnabled() {
-		tlsCfg, err := reflex.BuildServerTLSConfig(ech)
-		if err != nil {
-			return nil, errors.New("failed to build TLS+ECH config").Base(err).AtError()
-		}
-		handler.tlsConfig = tlsCfg
-	}
-
 	return handler, nil
 }
 
@@ -102,6 +92,8 @@ func (pc *preloadedConn) Write(b []byte) (int, error) {
 }
 
 // Process implements proxy.Inbound.Process().
+// It uses bufio.Peek to detect Reflex handshake vs fallback traffic without
+// consuming the initial bytes.
 func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
 	sessionPolicy := h.policyManager.ForLevel(0)
 
@@ -109,20 +101,12 @@ func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Co
 		return errors.New("unable to set read deadline").Base(err).AtWarning()
 	}
 
-	// If TLS+ECH is configured, wrap the raw TCP connection in a TLS server
-	// before proceeding with Reflex protocol detection.
-	if h.tlsConfig != nil {
-		tlsConn := tls.Server(conn, h.tlsConfig)
-		if err := tlsConn.HandshakeContext(ctx); err != nil {
-			return errors.New("TLS+ECH handshake failed").Base(err).AtWarning()
-		}
-		conn = stat.Connection(tlsConn)
-	}
-
+	// Wrap in bufio.Reader so we can Peek without consuming bytes
 	reader := bufio.NewReaderSize(conn, 4096)
 
 	peeked, err := reader.Peek(4)
 	if err != nil {
+		// Not enough data — likely not Reflex; try fallback
 		if h.fallback != nil {
 			return h.handleFallback(ctx, sessionPolicy, reader, conn)
 		}
@@ -137,6 +121,7 @@ func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Co
 		return errors.New("not a Reflex handshake and no fallback configured").AtWarning()
 	}
 
+	// Read the full handshake packet
 	hsData := make([]byte, reflex.HandshakeHeaderSize)
 	if _, err := io.ReadFull(reader, hsData); err != nil {
 		return errors.New("failed to read handshake data").Base(err).AtWarning()
@@ -150,15 +135,18 @@ func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Co
 		return errors.New("invalid handshake").Base(err).AtWarning()
 	}
 
+	// Validate timestamp to prevent replay attacks
 	if !reflex.ValidateTimestamp(clientHS.Timestamp) {
 		return errors.New("handshake timestamp out of range").AtWarning()
 	}
 
+	// Check nonce uniqueness (replay protection)
 	nonceVal := binary.BigEndian.Uint64(clientHS.Nonce[0:8])
 	if !h.nonceTracker.Check(nonceVal) {
 		return errors.New("replay detected: duplicate nonce").AtWarning()
 	}
 
+	// Authenticate the user by UUID
 	clientEntry := reflex.AuthenticateUser(clientHS.UserID, h.clientEntries)
 	if clientEntry == nil {
 		if h.fallback != nil {
@@ -167,11 +155,13 @@ func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Co
 		return errors.New("authentication failed: unknown UUID").AtWarning()
 	}
 
+	// Generate server ephemeral keypair for Curve25519 exchange
 	serverPrivKey, serverPubKey, err := reflex.GenerateKeyPair()
 	if err != nil {
 		return errors.New("failed to generate server keypair").Base(err).AtError()
 	}
 
+	// Derive shared secret and session key via HKDF
 	sharedSecret, err := reflex.DeriveSharedSecret(serverPrivKey, clientHS.PublicKey)
 	if err != nil {
 		return errors.New("key exchange failed").Base(err).AtError()
@@ -181,6 +171,7 @@ func (h *Handler) Process(ctx context.Context, network net.Network, conn stat.Co
 		return errors.New("session key derivation failed").Base(err).AtError()
 	}
 
+	// Send server handshake response
 	serverHS := &reflex.ServerHandshake{PublicKey: serverPubKey}
 	if _, err := conn.Write(reflex.MarshalServerHandshake(serverHS)); err != nil {
 		return errors.New("failed to send server handshake").Base(err).AtWarning()
@@ -200,6 +191,7 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 		return errors.New("failed to create session").Base(err).AtError()
 	}
 
+	// Initialize traffic morphing if the client's policy specifies a profile
 	morph := reflex.NewTrafficMorph(client.Policy)
 
 	sessionPolicy := h.policyManager.ForLevel(0)
@@ -211,6 +203,7 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 		Email:  client.ID,
 	})
 
+	// Read the first DATA frame to extract the destination
 	firstFrame, err := sess.ReadFrame(reader)
 	if err != nil {
 		return errors.New("failed to read first frame").Base(err).AtWarning()

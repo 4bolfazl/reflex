@@ -15,19 +15,9 @@ type ReflexFallbackConfig struct {
 	Dest uint32 `json:"dest"`
 }
 
-type ReflexECHConfig struct {
-	Enabled    bool   `json:"enabled"`
-	PublicName string `json:"publicName"`
-	CertFile   string `json:"certFile"`
-	KeyFile    string `json:"keyFile"`
-	ServerName string `json:"serverName"`
-	Insecure   bool   `json:"insecure"`
-}
-
 type ReflexInboundConfig struct {
 	Clients  []*ReflexUserConfig   `json:"clients"`
 	Fallback *ReflexFallbackConfig `json:"fallback"`
-	ECH      *ReflexECHConfig      `json:"ech"`
 }
 
 func (c *ReflexInboundConfig) Build() (proto.Message, error) {
@@ -49,27 +39,14 @@ func (c *ReflexInboundConfig) Build() (proto.Message, error) {
 		}
 	}
 
-	if c.ECH != nil && c.ECH.Enabled {
-		if c.ECH.CertFile == "" || c.ECH.KeyFile == "" {
-			return nil, errors.New("Reflex ECH: certFile and keyFile are required for server-side ECH")
-		}
-		config.Ech = &reflex.ECHSettings{
-			Enabled:    true,
-			PublicName: c.ECH.PublicName,
-			CertFile:   c.ECH.CertFile,
-			KeyFile:    c.ECH.KeyFile,
-		}
-	}
-
 	return config, nil
 }
 
 type ReflexOutboundConfig struct {
-	Address string          `json:"address"`
-	Port    uint32          `json:"port"`
-	ID      string          `json:"id"`
-	Policy  string          `json:"policy"`
-	ECH     *ReflexECHConfig `json:"ech"`
+	Address string `json:"address"`
+	Port    uint32 `json:"port"`
+	ID      string `json:"id"`
+	Policy  string `json:"policy"`
 }
 
 func (c *ReflexOutboundConfig) Build() (proto.Message, error) {
@@ -83,21 +60,10 @@ func (c *ReflexOutboundConfig) Build() (proto.Message, error) {
 		return nil, errors.New("Reflex outbound: missing client id")
 	}
 
-	outConfig := &reflex.OutboundConfig{
+	return &reflex.OutboundConfig{
 		Address: c.Address,
 		Port:    c.Port,
 		Id:      c.ID,
 		Policy:  c.Policy,
-	}
-
-	if c.ECH != nil && c.ECH.Enabled {
-		outConfig.Ech = &reflex.ECHSettings{
-			Enabled:    true,
-			PublicName: c.ECH.PublicName,
-			ServerName: c.ECH.ServerName,
-			Insecure:   c.ECH.Insecure,
-		}
-	}
-
-	return outConfig, nil
+	}, nil
 }
