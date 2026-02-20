@@ -85,7 +85,9 @@ func TestAddPadding(t *testing.T) {
 
 func TestAddPaddingNoOp(t *testing.T) {
 	data := make([]byte, 200)
-	rand.Read(data)
+	if _, err := rand.Read(data); err != nil {
+		t.Fatal(err)
+	}
 
 	padded := AddPadding(data, 100)
 	if !bytes.Equal(padded, data) {
@@ -341,7 +343,9 @@ func TestSampleDelayWeightedEmptyDistribution(t *testing.T) {
 func BenchmarkMorphWrite(b *testing.B) {
 	key := makeTestSessionKey()
 	data := make([]byte, 4096)
-	rand.Read(data)
+	if _, err := rand.Read(data); err != nil {
+		b.Fatal(err)
+	}
 
 	morph := &TrafficMorph{
 		Profile: &TrafficProfile{
@@ -357,6 +361,6 @@ func BenchmarkMorphWrite(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		sess, _ := NewSession(key)
 		var buf bytes.Buffer
-		morph.MorphWrite(sess, &buf, data)
+		_ = morph.MorphWrite(sess, &buf, data)
 	}
 }

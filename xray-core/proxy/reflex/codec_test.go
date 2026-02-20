@@ -11,7 +11,9 @@ import (
 
 func makeTestSessionKey() []byte {
 	key := make([]byte, 32)
-	rand.Read(key)
+	if _, err := rand.Read(key); err != nil {
+		panic(err)
+	}
 	return key
 }
 
@@ -145,7 +147,9 @@ func TestWritePaddingFrame(t *testing.T) {
 	var buf bytes.Buffer
 
 	padding := make([]byte, 128)
-	rand.Read(padding)
+	if _, err := rand.Read(padding); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := writer.WritePaddingFrame(&buf, padding); err != nil {
 		t.Fatalf("WritePaddingFrame failed: %v", err)
@@ -170,7 +174,9 @@ func TestEncryptionDecryptionIntegrity(t *testing.T) {
 	var buf bytes.Buffer
 
 	original := make([]byte, 4096)
-	rand.Read(original)
+	if _, err := rand.Read(original); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := writer.WriteFrame(&buf, FrameTypeData, original); err != nil {
 		t.Fatal(err)
@@ -193,7 +199,9 @@ func TestDecryptionWithWrongKey(t *testing.T) {
 	reader, _ := NewSession(key2)
 	var buf bytes.Buffer
 
-	writer.WriteFrame(&buf, FrameTypeData, []byte("secret"))
+	if err := writer.WriteFrame(&buf, FrameTypeData, []byte("secret")); err != nil {
+		t.Fatalf("WriteFrame failed: %v", err)
+	}
 
 	_, err := reader.ReadFrame(&buf)
 	if err == nil {
@@ -295,14 +303,14 @@ func TestConcurrentWriteRead(t *testing.T) {
 	readerSess, _ := NewSession(key)
 
 	clientConn, serverConn := net.Pipe()
-	defer clientConn.Close()
-	defer serverConn.Close()
+	defer func() { _ = clientConn.Close() }()
+	defer func() { _ = serverConn.Close() }()
 
 	messages := []string{"alpha", "bravo", "charlie", "delta"}
 
 	go func() {
 		for _, msg := range messages {
-			writerSess.WriteFrame(clientConn, FrameTypeData, []byte(msg))
+			_ = writerSess.WriteFrame(clientConn, FrameTypeData, []byte(msg))
 		}
 	}()
 
@@ -361,7 +369,7 @@ func TestReadFrameOnClosedPipe(t *testing.T) {
 	reader, _ := NewSession(key)
 
 	r, w := io.Pipe()
-	w.Close()
+	_ = w.Close()
 
 	_, err := reader.ReadFrame(r)
 	if err == nil {
@@ -373,13 +381,15 @@ func BenchmarkEncryption(b *testing.B) {
 	key := makeTestSessionKey()
 	sess, _ := NewSession(key)
 	data := make([]byte, 1024)
-	rand.Read(data)
+	if _, err := rand.Read(data); err != nil {
+		b.Fatal(err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var buf bytes.Buffer
-		sess.WriteFrame(&buf, FrameTypeData, data)
+		_ = sess.WriteFrame(&buf, FrameTypeData, data)
 	}
 }
 
@@ -395,7 +405,7 @@ func BenchmarkEncryptionSizes(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				var buf bytes.Buffer
-				sess.WriteFrame(&buf, FrameTypeData, data)
+				_ = sess.WriteFrame(&buf, FrameTypeData, data)
 			}
 		})
 	}

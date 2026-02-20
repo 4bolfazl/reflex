@@ -77,7 +77,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 	if err != nil {
 		return errors.New("failed to connect to reflex server").Base(err).AtWarning()
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	errors.LogInfo(ctx, "tunneling request to ", destination, " via ", serverDest.NetAddr())
 

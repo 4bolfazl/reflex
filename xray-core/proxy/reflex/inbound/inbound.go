@@ -289,8 +289,8 @@ func (h *Handler) handleSession(ctx context.Context, reader *bufio.Reader, conn 
 
 	responseDoneAndCloseWriter := task.OnSuccess(responseDone, task.Close(link.Writer))
 	if err := task.Run(ctx, requestDone, responseDoneAndCloseWriter); err != nil {
-		common.Interrupt(link.Reader)
-		common.Interrupt(link.Writer)
+		_ = common.Interrupt(link.Reader)
+		_ = common.Interrupt(link.Writer)
 		return errors.New("connection ends").Base(err).AtInfo()
 	}
 
@@ -357,7 +357,7 @@ func (h *Handler) handleFallback(ctx context.Context, sessionPolicy policy.Sessi
 	if err != nil {
 		return errors.New("failed to connect to fallback destination").Base(err).AtWarning()
 	}
-	defer fbConn.Close()
+	defer func() { _ = fbConn.Close() }()
 
 	wrapped := &preloadedConn{reader: reader, Connection: conn}
 

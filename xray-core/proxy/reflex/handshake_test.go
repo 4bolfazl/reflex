@@ -79,7 +79,9 @@ func TestDeriveSessionKey(t *testing.T) {
 	secret2, _ := DeriveSharedSecret(priv2, pub1)
 
 	nonce := make([]byte, 16)
-	rand.Read(nonce)
+	if _, err := rand.Read(nonce); err != nil {
+		t.Fatal(err)
+	}
 
 	key1, err := DeriveSessionKey(secret1, nonce)
 	if err != nil {
@@ -100,7 +102,9 @@ func TestDeriveSessionKey(t *testing.T) {
 
 func TestDeriveSessionKeyDifferentNonce(t *testing.T) {
 	var secret [32]byte
-	rand.Read(secret[:])
+	if _, err := rand.Read(secret[:]); err != nil {
+		t.Fatal(err)
+	}
 
 	key1, _ := DeriveSessionKey(secret, []byte("nonce-a"))
 	key2, _ := DeriveSessionKey(secret, []byte("nonce-b"))
@@ -114,7 +118,9 @@ func TestMarshalUnmarshalClientHandshake(t *testing.T) {
 	_, pubKey, _ := GenerateKeyPair()
 	uid, _ := uuid.ParseString("b831381d-6324-4d53-ad4f-8cda48b30811")
 	var nonce [16]byte
-	rand.Read(nonce[:])
+	if _, err := rand.Read(nonce[:]); err != nil {
+		t.Fatal(err)
+	}
 
 	original := &ClientHandshake{
 		PublicKey: pubKey,
@@ -171,7 +177,9 @@ func TestUnmarshalClientHandshakeInvalidMagic(t *testing.T) {
 func TestMarshalUnmarshalServerHandshake(t *testing.T) {
 	_, pubKey, _ := GenerateKeyPair()
 	var policyGrant [32]byte
-	rand.Read(policyGrant[:])
+	if _, err := rand.Read(policyGrant[:]); err != nil {
+		t.Fatal(err)
+	}
 
 	original := &ServerHandshake{
 		PublicKey:   pubKey,
@@ -304,7 +312,7 @@ func TestReflexMagicValue(t *testing.T) {
 
 func BenchmarkGenerateKeyPair(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		GenerateKeyPair()
+		_, _, _ = GenerateKeyPair()
 	}
 }
 
@@ -314,17 +322,19 @@ func BenchmarkDeriveSharedSecret(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		DeriveSharedSecret(priv1, pub2)
+		_, _ = DeriveSharedSecret(priv1, pub2)
 	}
 }
 
 func BenchmarkDeriveSessionKey(b *testing.B) {
 	var secret [32]byte
-	rand.Read(secret[:])
+	if _, err := rand.Read(secret[:]); err != nil {
+		b.Fatal(err)
+	}
 	nonce := make([]byte, 16)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		DeriveSessionKey(secret, nonce)
+		_, _ = DeriveSessionKey(secret, nonce)
 	}
 }

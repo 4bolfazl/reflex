@@ -19,8 +19,8 @@ import (
 // over a network connection.
 func TestReflexHandshakeIntegration(t *testing.T) {
 	clientConn, serverConn := net.Pipe()
-	defer clientConn.Close()
-	defer serverConn.Close()
+	defer func() { _ = clientConn.Close() }()
+	defer func() { _ = serverConn.Close() }()
 
 	clientUUID := "b831381d-6324-4d53-ad4f-8cda48b30811"
 	clients := []*reflex.ClientEntry{
@@ -106,7 +106,10 @@ func TestReflexHandshakeIntegration(t *testing.T) {
 		}
 
 		var nonce [16]byte
-		rand.Read(nonce[:])
+		if _, err := rand.Read(nonce[:]); err != nil {
+			clientErr = err
+			return
+		}
 
 		clientHS := &reflex.ClientHandshake{
 			PublicKey: clientPubKey,
@@ -187,7 +190,9 @@ func TestReflexFallbackDetection(t *testing.T) {
 
 	// Random data should not match
 	randomData := make([]byte, 4)
-	rand.Read(randomData)
+	if _, err := rand.Read(randomData); err != nil {
+		t.Fatal(err)
+	}
 	// It's astronomically unlikely that random bytes match 0x5246584C
 	if binary.BigEndian.Uint32(randomData) == reflex.ReflexMagic {
 		t.Log("extremely unlikely: random data matched magic (not a failure)")
@@ -259,8 +264,8 @@ func TestReflexReplayTimestampValidation(t *testing.T) {
 // handshake -> session creation -> bidirectional encrypted data exchange.
 func TestReflexIntegrationFullConnection(t *testing.T) {
 	clientConn, serverConn := net.Pipe()
-	defer clientConn.Close()
-	defer serverConn.Close()
+	defer func() { _ = clientConn.Close() }()
+	defer func() { _ = serverConn.Close() }()
 
 	// Generate a shared session key (simulating successful handshake)
 	clientPriv, clientPub, _ := reflex.GenerateKeyPair()
@@ -270,7 +275,9 @@ func TestReflexIntegrationFullConnection(t *testing.T) {
 	serverSecret, _ := reflex.DeriveSharedSecret(serverPriv, clientPub)
 
 	nonce := make([]byte, 16)
-	rand.Read(nonce)
+	if _, err := rand.Read(nonce); err != nil {
+		t.Fatal(err)
+	}
 
 	clientKey, _ := reflex.DeriveSessionKey(clientSecret, nonce)
 	serverKey, _ := reflex.DeriveSessionKey(serverSecret, nonce)
@@ -300,7 +307,9 @@ func TestReflexIntegrationFullConnection(t *testing.T) {
 				return
 			}
 		}
-		clientSess.WriteCloseFrame(clientConn)
+		if err := clientSess.WriteCloseFrame(clientConn); err != nil {
+			t.Errorf("WriteCloseFrame failed: %v", err)
+		}
 	}()
 
 	go func() {
@@ -338,11 +347,13 @@ func TestReflexIntegrationFullConnection(t *testing.T) {
 // TestReflexIntegrationBidirectional tests full-duplex encrypted data exchange.
 func TestReflexIntegrationBidirectional(t *testing.T) {
 	clientConn, serverConn := net.Pipe()
-	defer clientConn.Close()
-	defer serverConn.Close()
+	defer func() { _ = clientConn.Close() }()
+	defer func() { _ = serverConn.Close() }()
 
 	key := make([]byte, 32)
-	rand.Read(key)
+	if _, err := rand.Read(key); err != nil {
+		t.Fatal(err)
+	}
 
 	// Client uses WriteFrame/ReadFrame in one direction,
 	// server in the opposite. They need separate sessions with separate nonces.
@@ -351,7 +362,9 @@ func TestReflexIntegrationBidirectional(t *testing.T) {
 
 	// For the reverse direction, use a different key to avoid nonce conflicts
 	reverseKey := make([]byte, 32)
-	rand.Read(reverseKey)
+	if _, err := rand.Read(reverseKey); err != nil {
+		t.Fatal(err)
+	}
 	serverWriteSess, _ := reflex.NewSession(reverseKey)
 	clientReadSess, _ := reflex.NewSession(reverseKey)
 
@@ -361,7 +374,10 @@ func TestReflexIntegrationBidirectional(t *testing.T) {
 	// Client -> Server
 	go func() {
 		defer wg.Done()
-		clientWriteSess.WriteFrame(clientConn, reflex.FrameTypeData, []byte("request"))
+		if err := clientWriteSess.WriteFrame(clientConn, reflex.FrameTypeData, []byte("request")); err != nil {
+			t.Errorf("client WriteFrame failed: %v", err)
+			return
+		}
 
 		frame, err := clientReadSess.ReadFrame(clientConn)
 		if err != nil {
@@ -386,7 +402,9 @@ func TestReflexIntegrationBidirectional(t *testing.T) {
 			return
 		}
 
-		serverWriteSess.WriteFrame(serverConn, reflex.FrameTypeData, []byte("response"))
+		if err := serverWriteSess.WriteFrame(serverConn, reflex.FrameTypeData, []byte("response")); err != nil {
+			t.Errorf("server WriteFrame failed: %v", err)
+		}
 	}()
 
 	wg.Wait()
@@ -396,7 +414,9 @@ func TestReflexIntegrationBidirectional(t *testing.T) {
 // splits and pads data frames according to a traffic profile.
 func TestReflexIntegrationMorphedTraffic(t *testing.T) {
 	key := make([]byte, 32)
-	rand.Read(key)
+	if _, err := rand.Read(key); err != nil {
+		t.Fatal(err)
+	}
 
 	writerSess, _ := reflex.NewSession(key)
 	readerSess, _ := reflex.NewSession(key)
@@ -408,7 +428,9 @@ func TestReflexIntegrationMorphedTraffic(t *testing.T) {
 
 	var buf bytes.Buffer
 	data := make([]byte, 5000) // Larger than typical profile packet size
-	rand.Read(data)
+	if _, err := rand.Read(data); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := morph.MorphWrite(writerSess, &buf, data); err != nil {
 		t.Fatalf("MorphWrite failed: %v", err)

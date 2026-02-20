@@ -221,7 +221,7 @@ func AddPadding(data []byte, targetSize int) []byte {
 	}
 	padLen := targetSize - len(data)
 	padding := make([]byte, padLen)
-	rand.Read(padding)
+	_, _ = rand.Read(padding)
 	return append(data, padding...)
 }
 

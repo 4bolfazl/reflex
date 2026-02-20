@@ -167,7 +167,7 @@ func TestPreloadedConnRead(t *testing.T) {
 
 	// Create a mock connection using net.Pipe for the embedded Connection
 	clientConn, _ := net.Pipe()
-	defer clientConn.Close()
+	defer func() { _ = clientConn.Close() }()
 
 	// Use io.Reader interface from preloadedConn
 	pc := &preloadedConn{reader: reader}
